@@ -1,0 +1,1 @@
+- Always keep our components within the components folder built seperately from the page for global use

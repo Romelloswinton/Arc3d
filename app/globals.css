@@ -1,22 +1,50 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Twitch-themed colors */
+  --background: #0e0e10;
+  --foreground: #efeff1;
+  --card: #18181b;
+  --card-hover: #1f1f23;
+
+  /* Primary purple */
+  --primary: #9146ff;
+  --primary-hover: #7928ca;
+
+  /* Accent colors */
+  --success: #00f593;
+  --warning: #ffb31a;
+  --error: #ff4444;
+  --info: #00c8ff;
+
+  /* Text colors */
+  --text-primary: #efeff1;
+  --text-secondary: #adadb8;
+  --text-muted: #53535f;
+
+  /* Border colors */
+  --border-primary: #2e2e35;
+  --border-secondary: #3a3a3d;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-hover: var(--card-hover);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+  --color-info: var(--info);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-border-primary: var(--border-primary);
+  --color-border-secondary: var(--border-secondary);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
