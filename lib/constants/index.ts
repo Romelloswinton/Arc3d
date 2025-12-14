@@ -1,4 +1,5 @@
 export * from './theme';
+export * from './widgets';
 
 // App constants
 export const APP_NAME = 'nanobanana pro';

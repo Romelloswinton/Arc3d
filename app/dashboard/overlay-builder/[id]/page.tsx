@@ -9,6 +9,7 @@ import { LeftPanel } from "@/components/panels/LeftPanel"
 import { ExportModal } from "@/components/canvas/ExportModal"
 import { useProject } from "@/lib/hooks/useProjects"
 import { useAutoSave } from "@/lib/hooks/useAutoSave"
+import { PREBUILT_WIDGETS, PREBUILT_OVERLAYS } from "@/lib/constants/widgets"
 import type { ToolType, SaveStatus, Shape, ShapeType } from "@/lib/types/canvas"
 import type { Layer, Asset, AssetCategory } from "@/lib/types/layers"
 
@@ -55,8 +56,8 @@ export default function OverlayBuilder() {
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>("layer-1")
   const [selectedLayerIds, setSelectedLayerIds] = useState<string[]>([])
 
-  // Assets State
-  const [assets, setAssets] = useState<Asset[]>([])
+  // Assets State - Initialize with prebuilt overlays and widgets
+  const [assets, setAssets] = useState<Asset[]>([...PREBUILT_OVERLAYS, ...PREBUILT_WIDGETS])
   const [assetCategories] = useState<AssetCategory[]>([
     { id: "overlays", name: "Overlays" },
     { id: "badges", name: "Badges" },
@@ -104,6 +105,92 @@ export default function OverlayBuilder() {
 
   // Derive save status from auto-save hook
   const saveStatus: SaveStatus = isSaving ? "saving" : "saved"
+
+  // Keyboard shortcuts - MUST be before early returns
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return
+      }
+
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+      const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey
+
+      if (cmdOrCtrl && e.key === 'c' && selectedId) {
+        e.preventDefault()
+        const shape = shapes.find(s => s.id === selectedId)
+        const layer = layers.find(l => l.id === selectedId)
+        if (shape && layer) {
+          setClipboard({ shape, layer })
+        }
+      }
+
+      if (cmdOrCtrl && e.key === 'v' && clipboard) {
+        e.preventDefault()
+        const shapeId = `${clipboard.shape.type}-${Date.now()}`
+        const newShape: Shape = {
+          ...clipboard.shape,
+          id: shapeId,
+          x: clipboard.shape.x + 20,
+          y: clipboard.shape.y + 20,
+        }
+        const newLayer: Layer = {
+          ...clipboard.layer,
+          id: shapeId,
+          name: `${clipboard.layer.name} Copy`,
+          x: clipboard.layer.x ? clipboard.layer.x + 20 : undefined,
+          y: clipboard.layer.y ? clipboard.layer.y + 20 : undefined,
+        }
+        setShapes([...shapes, newShape])
+        setLayers([...layers, newLayer])
+        setSelectedLayerId(shapeId)
+        setSelectedId(shapeId)
+      }
+
+      if (cmdOrCtrl && e.key === 'd' && selectedId) {
+        e.preventDefault()
+        const shape = shapes.find(s => s.id === selectedId)
+        const layer = layers.find(l => l.id === selectedId)
+        if (shape && layer) {
+          const shapeId = `${shape.type}-${Date.now()}`
+          const newShape: Shape = {
+            ...shape,
+            id: shapeId,
+            x: shape.x + 20,
+            y: shape.y + 20,
+          }
+          const newLayer: Layer = {
+            ...layer,
+            id: shapeId,
+            name: `${layer.name} Copy`,
+            x: layer.x ? layer.x + 20 : undefined,
+            y: layer.y ? layer.y + 20 : undefined,
+          }
+          setShapes([...shapes, newShape])
+          setLayers([...layers, newLayer])
+          setSelectedLayerId(shapeId)
+          setSelectedId(shapeId)
+        }
+      }
+
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
+        e.preventDefault()
+        handleShapeDelete(selectedId)
+      }
+
+      if (cmdOrCtrl && e.key === 'a') {
+        e.preventDefault()
+        if (shapes.length > 0) {
+          setSelectedId(shapes[0].id)
+          setSelectedLayerId(shapes[0].id)
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [shapes, layers, selectedId, clipboard])
 
   // Handle loading and error states
   if (isLoading) {
@@ -319,6 +406,31 @@ export default function OverlayBuilder() {
 
   const handleAssetSelect = (asset: Asset) => {
     console.log("Selected asset:", asset)
+
+    // Load the widget template into the canvas
+    if (asset.data?.shapes && asset.data?.layers) {
+      // Add all shapes from the template
+      const newShapes = asset.data.shapes.map((shapeData: any) => ({
+        ...shapeData,
+        id: `${shapeData.id}-${Date.now()}`, // Ensure unique IDs
+      }))
+
+      // Add all layers from the template
+      const newLayers = asset.data.layers.map((layerData: any) => ({
+        ...layerData,
+        id: `${layerData.id}-${Date.now()}`, // Match the new shape IDs
+      }))
+
+      // Add to existing shapes and layers
+      setShapes([...shapes, ...newShapes])
+      setLayers([...layers, ...newLayers])
+
+      // Select the first shape from the template
+      if (newShapes.length > 0) {
+        setSelectedId(newShapes[0].id)
+        setSelectedLayerId(newLayers[0].id)
+      }
+    }
   }
 
   const handleAssetCreate = () => {
@@ -461,92 +573,6 @@ export default function OverlayBuilder() {
 
   const selectedShape = shapes.find((s) => s.id === selectedId) || null
   const selectedLayer = layers.find((l) => l.id === selectedLayerId) || null
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
-        return
-      }
-
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
-      const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey
-
-      if (cmdOrCtrl && e.key === 'c' && selectedId) {
-        e.preventDefault()
-        const shape = shapes.find(s => s.id === selectedId)
-        const layer = layers.find(l => l.id === selectedId)
-        if (shape && layer) {
-          setClipboard({ shape, layer })
-        }
-      }
-
-      if (cmdOrCtrl && e.key === 'v' && clipboard) {
-        e.preventDefault()
-        const shapeId = `${clipboard.shape.type}-${Date.now()}`
-        const newShape: Shape = {
-          ...clipboard.shape,
-          id: shapeId,
-          x: clipboard.shape.x + 20,
-          y: clipboard.shape.y + 20,
-        }
-        const newLayer: Layer = {
-          ...clipboard.layer,
-          id: shapeId,
-          name: `${clipboard.layer.name} Copy`,
-          x: clipboard.layer.x ? clipboard.layer.x + 20 : undefined,
-          y: clipboard.layer.y ? clipboard.layer.y + 20 : undefined,
-        }
-        setShapes([...shapes, newShape])
-        setLayers([...layers, newLayer])
-        setSelectedLayerId(shapeId)
-        setSelectedId(shapeId)
-      }
-
-      if (cmdOrCtrl && e.key === 'd' && selectedId) {
-        e.preventDefault()
-        const shape = shapes.find(s => s.id === selectedId)
-        const layer = layers.find(l => l.id === selectedId)
-        if (shape && layer) {
-          const shapeId = `${shape.type}-${Date.now()}`
-          const newShape: Shape = {
-            ...shape,
-            id: shapeId,
-            x: shape.x + 20,
-            y: shape.y + 20,
-          }
-          const newLayer: Layer = {
-            ...layer,
-            id: shapeId,
-            name: `${layer.name} Copy`,
-            x: layer.x ? layer.x + 20 : undefined,
-            y: layer.y ? layer.y + 20 : undefined,
-          }
-          setShapes([...shapes, newShape])
-          setLayers([...layers, newLayer])
-          setSelectedLayerId(shapeId)
-          setSelectedId(shapeId)
-        }
-      }
-
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
-        e.preventDefault()
-        handleShapeDelete(selectedId)
-      }
-
-      if (cmdOrCtrl && e.key === 'a') {
-        e.preventDefault()
-        if (shapes.length > 0) {
-          setSelectedId(shapes[0].id)
-          setSelectedLayerId(shapes[0].id)
-        }
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [shapes, layers, selectedId, clipboard])
 
   return (
     <div className="min-h-screen flex flex-col bg-background relative">

@@ -6,6 +6,7 @@ import { GlobalToolsBar } from "@/components/canvas/GlobalToolsBar"
 import { PropertiesPanel } from "@/components/canvas/PropertiesPanel"
 import { LeftPanel } from "@/components/panels/LeftPanel"
 import { ExportModal } from "@/components/canvas/ExportModal"
+import { PREBUILT_WIDGETS, PREBUILT_OVERLAYS } from "@/lib/constants/widgets"
 import type { ToolType, SaveStatus, Shape, ShapeType } from "@/lib/types/canvas"
 import type { Layer, Asset, AssetCategory } from "@/lib/types/layers"
 
@@ -47,8 +48,8 @@ export default function OverlayBuilder() {
   )
   const [selectedLayerIds, setSelectedLayerIds] = useState<string[]>([])
 
-  // Assets State
-  const [assets, setAssets] = useState<Asset[]>([])
+  // Assets State - Initialize with prebuilt overlays and widgets
+  const [assets, setAssets] = useState<Asset[]>([...PREBUILT_OVERLAYS, ...PREBUILT_WIDGETS])
   const [assetCategories] = useState<AssetCategory[]>([
     { id: "overlays", name: "Overlays" },
     { id: "badges", name: "Badges" },
@@ -299,7 +300,34 @@ export default function OverlayBuilder() {
   // Asset Management
   const handleAssetSelect = (asset: Asset) => {
     console.log("Selected asset:", asset)
-    // TODO: Add asset to canvas
+
+    // Load the widget template into the canvas
+    if (asset.data?.shapes && asset.data?.layers) {
+      // Add all shapes from the template
+      const newShapes = asset.data.shapes.map((shapeData: any) => ({
+        ...shapeData,
+        id: `${shapeData.id}-${Date.now()}`, // Ensure unique IDs
+      }))
+
+      // Add all layers from the template
+      const newLayers = asset.data.layers.map((layerData: any) => ({
+        ...layerData,
+        id: `${layerData.id}-${Date.now()}`, // Match the new shape IDs
+      }))
+
+      // Add to existing shapes and layers
+      setShapes([...shapes, ...newShapes])
+      setLayers([...layers, ...newLayers])
+
+      // Select the first shape from the template
+      if (newShapes.length > 0) {
+        setSelectedId(newShapes[0].id)
+        setSelectedLayerId(newLayers[0].id)
+      }
+
+      // Mark as unsaved
+      setSaveStatus("unsaved")
+    }
   }
 
   const handleAssetCreate = () => {
